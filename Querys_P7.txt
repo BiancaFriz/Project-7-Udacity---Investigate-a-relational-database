@@ -1,0 +1,82 @@
+/* Query 1 - query used for first insight*/
+SELECT CONCAT(f.title,' - ', c.name) as film_category, COUNT(r.rental_id) as rental_count
+  FROM film_category fm
+  JOIN film f
+    ON fm.film_id = f.film_id 
+  JOIN category c
+    ON fm.category_id = c.category_id 
+  JOIN inventory i
+    ON f.film_id = i.film_id 
+  JOIN rental r
+    ON i.inventory_id = r.inventory_id
+ GROUP BY 1
+ ORDER BY 2 DESC
+ LIMIT 5;
+
+
+/* Query 2 - query used for second insight*/
+WITH store1 AS 
+              (SELECT CONCAT('0',t1.month, '/', t1.year) as date,t1.count as store1_count
+                 FROM (SELECT EXTRACT(MONTH FROM r.rental_date) as month, 
+    EXTRACT(YEAR FROM r.rental_date) as year, s.store_id store_id, COUNT(r.rental_date) as count
+                 FROM rental r 
+                 JOIN staff st 
+                   ON r.staff_id = st.staff_id 
+                 JOIN store s 
+                   ON st.store_id = s.store_id
+                GROUP BY 1, 2, 3
+                ORDER BY count DESC) t1
+                WHERE t1.store_id = 1), 
+    store2 AS (SELECT CONCAT('0',t2.month, '/', t2.year) as date, 
+             t2.count as store2_count
+                 FROM (SELECT EXTRACT(MONTH FROM r.rental_date) as month, EXTRACT(YEAR FROM r.rental_date) as year, 
+ s.store_id store_id, COUNT(r.rental_date) count
+                 FROM rental r 
+                 JOIN staff st 
+                   ON r.staff_id = st.staff_id 
+                 JOIN store s 
+                   ON st.store_id = s.store_id
+                GROUP BY 1, 2, 3
+                ORDER BY count DESC) t2
+                WHERE t2.store_id = 2)
+               SELECT store1.date, store1.store1_count, store2.store2_count
+                 FROM store1
+                 JOIN store2
+                   ON store1.date = store2.date
+                ORDER BY 1 ASC;
+
+/* Query 3 - query used for third insight*/
+   WITH t2 AS
+(SELECT co.country, SUM(p.amount) OVER (ORDER BY co.country) AS  total_amount_payment, EXTRACT(MONTH FROM p.payment_date) as month_payment 
+   FROM payment p 
+   JOIN customer c
+     ON p.customer_id = c.customer_id
+   JOIN address a
+     ON c.address_id = a.address_id
+   JOIN city ci
+     ON a.city_id = ci.city_id
+   JOIN country co
+     ON ci.country_id = co.country_id)
+ SELECT DISTINCT t2.country, t2.total_amount_payment
+   FROM t2
+  WHERE t2.month_payment = (SELECT * 
+   FROM (SELECT DISTINCT EXTRACT(MONTH FROM p.payment_date) AS month_payment
+   FROM payment p) as t1
+  WHERE t1.month_payment = 4)
+  ORDER BY 2 ASC
+  LIMIT 4;
+
+/* Query 4 - query used for fourth insight*/
+SELECT c.name AS category_name, COUNT(r.rental_id)
+  FROM rental r 
+  JOIN inventory i
+    ON r.inventory_id = i.inventory_id
+  JOIN film f
+    ON i.film_id = f.film_id
+  JOIN film_category fm
+    ON f.film_id = fm.film_id
+  JOIN category c
+    ON fm.category_id = c.category_id
+ GROUP BY 1
+ ORDER BY 2 DESC
+ LIMIT 5;
